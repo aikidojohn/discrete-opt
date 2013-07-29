@@ -16,7 +16,7 @@ def solveIt(inputData):
 
     # Runs the command: java Solver -file=tmp.data
 
-    process = Popen(['cmd', '/C', 'scala Solver3 tmp.data'], stdout=PIPE)
+    process = Popen(['cmd', '/C', 'scala -classpath bin Solver3 tmp.data'], stdout=PIPE)
     (stdout, stderr) = process.communicate()
 
     # removes the temporay file
