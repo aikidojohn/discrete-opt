@@ -1,32 +1,29 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import os
+from subprocess import Popen, PIPE
+
 
 def solveIt(inputData):
-    # Modify this code to run your optimization algorithm
 
-    # parse the input
-    lines = inputData.split('\n')
+    # Writes the inputData to a temporay file
 
-    firstLine = lines[0].split()
-    nodeCount = int(firstLine[0])
-    edgeCount = int(firstLine[1])
+    tmpFileName = 'tmp.data'
+    tmpFile = open(tmpFileName, 'w')
+    tmpFile.write(inputData)
+    tmpFile.close()
 
-    edges = []
-    for i in range(1, edgeCount + 1):
-        line = lines[i]
-        parts = line.split()
-        edges.append((int(parts[0]), int(parts[1])))
+    # Runs the command: java Solver -file=tmp.data
 
-    # build a trivial solution
-    # every node has its own color
-    solution = range(0, nodeCount)
+    process = Popen(['cmd', '/C', 'scala Solver3 tmp.data'], stdout=PIPE)
+    (stdout, stderr) = process.communicate()
 
-    # prepare the solution in the specified output format
-    outputData = str(nodeCount) + ' ' + str(0) + '\n'
-    outputData += ' '.join(map(str, solution))
+    # removes the temporay file
 
-    return outputData
+    os.remove(tmpFileName)
+
+    return stdout.strip()
 
 
 import sys
@@ -39,5 +36,5 @@ if __name__ == '__main__':
         inputDataFile.close()
         print solveIt(inputData)
     else:
-        print 'This test requires an input file.  Please select one from the data directory. (i.e. python solver.py ./data/gc_4_1)'
+        print 'This test requires an input file.  Please select one from the data directory. (i.e. python solver.py ./data/ks_4_0)'
 

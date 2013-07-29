@@ -25,7 +25,8 @@ object Solver2 {
         colors
       } 
       
-      var gen = new PermutationGenerator(makeList(3))
+      //var gen = new PermutationGenerator(makeList(3))
+      var gen = new ColorGenerator(10)
       gen.toStream
     }
     
@@ -47,17 +48,37 @@ object Solver2 {
   class ColorGenerator(val size: Int) {
     private val array = new Array[Int](size)
     for (i <- 0 to size - 1) {
-      array(i) = 0;
+      array(i) = 0
     }
     
-    var numberColors = 2;
+    var lastIndex = size - 1;
+    private def next(): List[Int] = {
+      if (lastIndex == 0) {
+        return Nil
+      }
+      array(lastIndex) = size - lastIndex
+      lastIndex = lastIndex -1
+      array.toList
+    }
+    
+    private def stream(last: List[Int]): Stream[List[Int]] = last #:: stream(next()) 
+    
+    /**
+     * Lazily generate the permutations
+     */
+    def toStream(): Stream[List[Int]] = {
+      stream(array.toList)
+    }
+    /*var numberColors = 2;
     private def next(): List[Int] = {
       for (color <- 1 to numberColors -1) {
         val maxDuplicate = (size - numberColors + 1)/2
-        
+        for (j <- 0 to maxDuplicate) {
+          
+        }
       }
       List()
-    }
+    }*/
   }
 
   /**
