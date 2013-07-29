@@ -20,14 +20,14 @@ object Solver3 {
     //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
     val startingConstraints = Set[Constraint](new IsEqualConstraint(0, 0, graph), new PairwiseNotEqualConstraint(graph.edges, graph))
     
-    var sol = findSolution(graph, startingConstraints)
+    var sol = findSolutionRecursive(graph, startingConstraints)
     var solution = sol
     while(sol != null) {
       val colorsUsed = 1 + sol.reduceLeft((a, b) => if (a > b) a else b)
       val constraint = new MaxColorsConstraint(colorsUsed - 1, graph)
       solution = sol
       if (isDebug) println("found solution with " + colorsUsed + ". Looking for better solution")
-      sol = findSolution(graph, startingConstraints + constraint)
+      sol = findSolutionRecursive(graph, startingConstraints + constraint)
     }
     val colorsUsed = 1 + solution.reduceLeft((a, b) => if (a > b) a else b)
     println(colorsUsed + " " + 0)
@@ -113,6 +113,52 @@ object Solver3 {
 	   }
     }
     return  solution
+  }
+  
+  def findSolutionRecursive(graph: Graph, initialConstraints: Set[Constraint]): List[Int] = {
+    val colors = new Array[HashSet[Int]](graph.nodeCount)
+    for (i <- 0 to graph.nodeCount - 1) {
+      colors(i) = new HashSet()
+      for(j <- 0 to graph.nodeCount -1) {
+        colors(i) += j
+      }
+    }
+    
+    //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
+    var constraints = HashSet[Constraint]()
+    constraints ++= initialConstraints
+    
+    findSolutionR(graph, constraints, colors,  List[Int]());
+  }
+  
+  def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[Int]): List[Int] = {
+     //do we have a solution
+     if (solution.length == graph.nodeCount) {
+       return solution
+     }
+     
+     //Make a choice
+     val choice = colors(solution.length).reduceLeft((a, b) =>  if (a < b) a else b)
+     if (isDebug) {
+       println("choosing " + solution.length + " = " +  choice)
+     }
+     val lastConstraint = new IsEqualConstraint(solution.length, choice, graph)
+     //find the minimum element to use as our next choice
+     val nextConstraints = constraints + lastConstraint
+     val nextColors = colors.clone
+     //propogate
+     if (propogate(nextConstraints, nextColors)) {
+       return findSolutionR(graph, nextConstraints, nextColors, solution :+ choice)
+     } 
+     else {
+       if (colors(solution.length).size > 1) {
+         colors(solution.length).remove(choice)
+         findSolutionR(graph, constraints, colors, solution)
+       } 
+       else {
+         List[Int]()
+       }
+     }
   }
   
   def propogate(constraints: HashSet[Constraint], colors: Array[HashSet[Int]]): Boolean = {
