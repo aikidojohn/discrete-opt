@@ -22,7 +22,7 @@ object Solver3 {
     
     var sol = findSolutionRecursive(graph, startingConstraints)
     var solution = sol
-    while(sol != null) {
+    while(!sol.isEmpty) {
       val colorsUsed = 1 + sol.reduceLeft((a, b) => if (a > b) a else b)
       val constraint = new MaxColorsConstraint(colorsUsed - 1, graph)
       solution = sol
@@ -134,30 +134,33 @@ object Solver3 {
   def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[Int]): List[Int] = {
      //do we have a solution
      if (solution.length == graph.nodeCount) {
-       return solution
-     }
-     
-     //Make a choice
-     val choice = colors(solution.length).reduceLeft((a, b) =>  if (a < b) a else b)
-     if (isDebug) {
-       println("choosing " + solution.length + " = " +  choice)
-     }
-     val lastConstraint = new IsEqualConstraint(solution.length, choice, graph)
-     //find the minimum element to use as our next choice
-     val nextConstraints = constraints + lastConstraint
-     val nextColors = colors.clone
-     //propogate
-     if (propogate(nextConstraints, nextColors)) {
-       return findSolutionR(graph, nextConstraints, nextColors, solution :+ choice)
-     } 
-     else {
-       if (colors(solution.length).size > 1) {
-         colors(solution.length).remove(choice)
-         findSolutionR(graph, constraints, colors, solution)
-       } 
-       else {
-         List[Int]()
-       }
+       solution
+     } else {
+	     //Make a choice
+         var solutionFound = List[Int]()
+         val itr = colors(solution.length).iterator
+         while (itr.hasNext && solutionFound.isEmpty) {
+        	 val choice = itr.next
+		     //if (isDebug) println("choosing " + solution.length + " = " +  choice)
+		     
+		     val lastConstraint = new IsEqualConstraint(solution.length, choice, graph)
+		     //find the minimum element to use as our next choice
+		     val nextConstraints = constraints + lastConstraint
+		     val nextColors = colors.map(set => set.clone())
+		     //propogate
+		     val nextSolution = 
+			     if (propogate(nextConstraints, nextColors)) {
+			       findSolutionR(graph, nextConstraints, nextColors, solution :+ choice)
+			     } 
+			     else {
+			       List[Int]()
+			     }
+		     
+		     if (!nextSolution.isEmpty) {
+		       solutionFound = nextSolution
+		     }
+         }
+         solutionFound
      }
   }
   
