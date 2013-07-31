@@ -1,10 +1,9 @@
 
-import scala.io.Source
+import scala.Array.canBuildFrom
 import scala.collection.mutable.HashSet
-import scala.compat.Platform
-import scala.collection.mutable.Queue
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Stack
+import scala.collection.mutable.Queue
+import scala.io.Source
 
 object Solver3 {
   val isDebug = true
@@ -18,7 +17,7 @@ object Solver3 {
   
   def solve(graph: Graph) : Unit = {    
     //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
-    val startingConstraints = Set[Constraint](new IsEqualConstraint(0, 0, graph), new PairwiseNotEqualConstraint(graph.edges, graph))
+    val startingConstraints = Set[Constraint](new SymetryBreakingConstraint(graph), new PairwiseNotEqualConstraint(graph.edges, graph))
     
     var sol = findSolutionRecursive(graph, startingConstraints)
     var solution = sol
@@ -248,6 +247,39 @@ object Solver3 {
      }
    }
    
+   case class SymetryBreakingConstraint(graph: Graph) extends Constraint {
+     var nodesTouched = ListBuffer[Node]()
+     
+     override def isValid(colors: Array[HashSet[Int]]): Boolean = {
+       //always valid. Constraint only prunes
+       return true
+     }
+     
+     override def prune(colors: Array[HashSet[Int]]): Boolean = {
+       nodesTouched.clear
+       //remove all values greater than or equal max from all domains
+       var pruned = false;
+       var index = 0;
+       colors.foreach(set => {
+         val initialSize = set.size;
+         set.retain( (elem) => elem <= index)
+         if (initialSize > set.size) {
+           nodesTouched += graph.nodes(index)
+           pruned = true;
+         }
+         index += 1
+       })
+       return pruned
+     }
+     
+     override def getPrunedNodes(): List[Node] = {
+       nodesTouched.toList
+     }
+     
+     override def setPrunedNodes(nodes: List[Node]): Unit = {
+       //Don't care about nodes touched by other constraints
+     }
+   }
   /**
    * Class for representing the graph edges
    */
