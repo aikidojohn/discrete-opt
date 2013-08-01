@@ -11,7 +11,7 @@ object Solver3 {
   def main(args: Array[String]) : Unit = {
     val graph = new Graph(args(0))
     //println("nodes: " + graph.nodeCount + " edges: " + graph.edgeCount)
-    //graph.nodes.foreach(n => println(n._1 + ": { " + (n._2.children.foldLeft("")((z, c) => z + c.index + " "))  + "}"))
+    graph.nodes.foreach(n => println(n._1 + ": { " + (n._2.children.foldLeft("")((z, c) => z + c.index + " "))  + "}"))
     solve(graph)
   }
   
@@ -33,6 +33,9 @@ object Solver3 {
     solution.sortWith((a, b) => a._1 < b._1).foreach(node => print(node._2 + " "))
   }
   
+  /**
+   * Finds a solution with the given initial constraints
+   */
   def findSolutionRecursive(graph: Graph, initialConstraints: Set[Constraint]): List[(Int, Int)] = {
     val colors = new Array[HashSet[Int]](graph.nodeCount)
     for (i <- 0 to graph.nodeCount - 1) {
@@ -44,9 +47,16 @@ object Solver3 {
     
     val constraints = HashSet[Constraint]() ++ initialConstraints
     
+    if (!propogate(constraints, colors)) {
+      return List[(Int,Int)]()
+    }
+    
     findSolutionR(graph, constraints, colors,  List[(Int, Int)]());
   }
   
+  /**
+   * Recursive algorithm that finds a solution by fixing variables and propagating constraints 
+   */
   def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[(Int, Int)]): List[(Int, Int)] = {
      //do we have a solution
      if (solution.length == graph.nodeCount) {
@@ -59,7 +69,7 @@ object Solver3 {
          val itr = colors(chosenIndex).iterator
          while (itr.hasNext && solutionFound.isEmpty) {
         	 val choice = itr.next
-		     if (isDebug) println("choosing " + solution.length + " = " +  choice)
+		     if (isDebug) println("choosing " + " " * solution.length + " " + chosenIndex + " = " +  choice)
 		     
 		     val nextConstraints = constraints + new IsEqualConstraint(chosenIndex, choice, graph)
         	 //TODO use immutable types so the deep clone is unnecessary
@@ -258,6 +268,8 @@ object Solver3 {
    
    case class SymetryBreakingConstraint(graph: Graph) extends Constraint {
      var nodesTouched = ListBuffer[Node]()
+     //sort nodes by degree (increasing)
+     val sortedNodes = graph.nodes.toList.sortWith((a, b) => a._2.children.size > b._2.children.size);
      
      override def isValid(colors: Array[HashSet[Int]]): Boolean = {
        //always valid. Constraint only prunes
@@ -266,9 +278,20 @@ object Solver3 {
      
      override def prune(colors: Array[HashSet[Int]]): Boolean = {
        nodesTouched.clear
-       //remove all values greater than or equal max from all domains
+       //sort nodes by 
+       
        var pruned = false;
        var index = 0;
+       sortedNodes.foreach(node => {
+         val initialSize = colors(node._1).size
+         colors(node._1).retain((elem) => elem <= index)
+         if (initialSize > colors(node._1).size) {
+           nodesTouched += graph.nodes(index)
+           pruned = true;
+         }
+         index += 1
+       })
+       /*
        colors.foreach(set => {
          val initialSize = set.size;
          set.retain( (elem) => elem <= index)
@@ -277,7 +300,7 @@ object Solver3 {
            pruned = true;
          }
          index += 1
-       })
+       })*/
        return pruned
      }
      
