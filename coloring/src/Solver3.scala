@@ -22,18 +22,18 @@ object Solver3 {
     var sol = findSolutionRecursive(graph, startingConstraints)
     var solution = sol
     while(!sol.isEmpty) {
-      val colorsUsed = 1 + sol.reduceLeft((a, b) => if (a > b) a else b)
+      val colorsUsed = 1 + sol.reduceLeft((a, b) => if (a._2 > b._2) a else b)._2
       val constraint = new MaxColorsConstraint(colorsUsed - 1, graph)
       solution = sol
       if (isDebug) println("found solution with " + colorsUsed + ". Looking for better solution")
       sol = findSolutionRecursive(graph, startingConstraints + constraint)
     }
-    val colorsUsed = 1 + solution.reduceLeft((a, b) => if (a > b) a else b)
+    val colorsUsed = 1 + solution.reduceLeft((a, b) => if (a._2 > b._2) a else b)._2
     println(colorsUsed + " " + 0)
-    solution.foreach(node => print(node + " "))
+    solution.sortWith((a, b) => a._1 < b._1).foreach(node => print(node._2 + " "))
   }
   
-  def findSolutionRecursive(graph: Graph, initialConstraints: Set[Constraint]): List[Int] = {
+  def findSolutionRecursive(graph: Graph, initialConstraints: Set[Constraint]): List[(Int, Int)] = {
     val colors = new Array[HashSet[Int]](graph.nodeCount)
     for (i <- 0 to graph.nodeCount - 1) {
       colors(i) = new HashSet()
@@ -42,36 +42,35 @@ object Solver3 {
       }
     }
     
-    //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
-    var constraints = HashSet[Constraint]()
-    constraints ++= initialConstraints
+    val constraints = HashSet[Constraint]() ++ initialConstraints
     
-    findSolutionR(graph, constraints, colors,  List[Int]());
+    findSolutionR(graph, constraints, colors,  List[(Int, Int)]());
   }
   
-  def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[Int]): List[Int] = {
+  def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[(Int, Int)]): List[(Int, Int)] = {
      //do we have a solution
      if (solution.length == graph.nodeCount) {
        solution
      } else {
 	     //Make a choice
-         var solutionFound = List[Int]()
-         val itr = colors(solution.length).iterator
+         var solutionFound = List[(Int, Int)]()
+         
+         val chosenIndex = chooseNode(graph, colors, solution)
+         val itr = colors(chosenIndex).iterator
          while (itr.hasNext && solutionFound.isEmpty) {
         	 val choice = itr.next
-		     //if (isDebug) println("choosing " + solution.length + " = " +  choice)
+		     if (isDebug) println("choosing " + solution.length + " = " +  choice)
 		     
-		     val lastConstraint = new IsEqualConstraint(solution.length, choice, graph)
-		     //find the minimum element to use as our next choice
-		     val nextConstraints = constraints + lastConstraint
+		     val nextConstraints = constraints + new IsEqualConstraint(chosenIndex, choice, graph)
+        	 //TODO use immutable types so the deep clone is unnecessary
 		     val nextColors = colors.map(set => set.clone())
 		     //propogate
 		     val nextSolution = 
 			     if (propogate(nextConstraints, nextColors)) {
-			       findSolutionR(graph, nextConstraints, nextColors, solution :+ choice)
+			       findSolutionR(graph, nextConstraints, nextColors, solution :+ (chosenIndex, choice))
 			     } 
 			     else {
-			       List[Int]()
+			       List[(Int, Int)]()
 			     }
 		     
 		     if (!nextSolution.isEmpty) {
@@ -82,9 +81,19 @@ object Solver3 {
      }
   }
   
+  def chooseNode(graph: Graph, colors: Array[HashSet[Int]], solution: List[(Int, Int)]): Int = {
+    //zip the colors with their index then sort. Sort first by smallest domain then by largest node degree
+    val sortedColors = (colors.zipWithIndex).sortWith( (a,b) => a._1.size < b._1.size || (a._1.size == b._1.size && graph.nodes(a._2).children.size > graph.nodes(b._2).children.size) ) // sortWith((a,b) => a.size < b.size || (a.size == b.size && graph.nodes(colors.indexOf(a)).children.size >  graph.nodes(colors.indexOf(b)).children.size));
+
+    //find the node most likely to fail node with the smallest domain or node with the largest degree in case of a tie
+    val index = sortedColors.find(n => !solution.exists(s => s._1 == n._2))
+    //if (isDebug) println("choosing index " + index.get._2)
+    return index.get._2
+  }
+  
   def propogate(constraints: HashSet[Constraint], colors: Array[HashSet[Int]]): Boolean = {
     var continue = true
-    var nodesTouched = ListBuffer[Node]()
+    val nodesTouched = ListBuffer[Node]()
     while(continue) {
         continue = false
 	    val it = constraints.iterator;
