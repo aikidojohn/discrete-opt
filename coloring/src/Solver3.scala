@@ -4,18 +4,29 @@ import scala.collection.mutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Queue
 import scala.io.Source
+import scala.compat.Platform
 
 object Solver3 {
   val isDebug = true
+  var stopTime = 1L
+  val timelimit = 60000L
   
   def main(args: Array[String]) : Unit = {
     val graph = new Graph(args(0))
     //println("nodes: " + graph.nodeCount + " edges: " + graph.edgeCount)
-    graph.nodes.foreach(n => println(n._1 + ": { " + (n._2.children.foldLeft("")((z, c) => z + c.index + " "))  + "}"))
+    //graph.nodes.foreach(n => println(n._1 + ": { " + (n._2.children.foldLeft("")((z, c) => z + c.index + " "))  + "}"))
     solve(graph)
   }
   
   def solve(graph: Graph) : Unit = {    
+    val solution = searchBinary(graph)
+    //val solution = searchLinear(graph)
+    val colorsUsed = 1 + solution.reduceLeft((a, b) => if (a._2 > b._2) a else b)._2
+    println(colorsUsed + " " + 0)
+    solution.foreach(node => print(node._2 + " "))
+  }
+  
+  def searchLinear(graph: Graph): List[(Int, Int)] = {
     //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
     val startingConstraints = Set[Constraint](new SymetryBreakingConstraint(graph), new PairwiseNotEqualConstraint(graph.edges, graph))
     
@@ -28,9 +39,32 @@ object Solver3 {
       if (isDebug) println("found solution with " + colorsUsed + ". Looking for better solution")
       sol = findSolutionRecursive(graph, startingConstraints + constraint)
     }
-    val colorsUsed = 1 + solution.reduceLeft((a, b) => if (a._2 > b._2) a else b)._2
-    println(colorsUsed + " " + 0)
-    solution.sortWith((a, b) => a._1 < b._1).foreach(node => print(node._2 + " "))
+    solution.sortWith((a, b) => a._1 < b._1)
+  }
+  
+  def searchBinary(graph: Graph): List[(Int, Int)] = {
+    //Inital constraints first node is color 0 and all connected nodes are pairwise not equal.
+    val startingConstraints = Set[Constraint](new SymetryBreakingConstraint(graph), new PairwiseNotEqualConstraint(graph.edges, graph))
+    var max = graph.nodeCount
+    var min = 0
+    
+    //var lastChecked = max/2
+    var sol = List[(Int, Int)]() //findSolutionRecursive(graph, startingConstraints + new MaxColorsConstraint(max - (max-min)/2, graph))
+    var solution = sol
+    while(max > min) {
+      val constraint = new MaxColorsConstraint(max - (max-min)/2, graph)
+      sol = findSolutionRecursive(graph, startingConstraints + constraint)
+      if (sol.isEmpty) {
+        min = max - (max-min)/2
+        if (isDebug) println("no solution with " + min + ". Looking for better solution")
+      } 
+      else {
+	      max = sol.reduceLeft((a, b) => if (a._2 > b._2) a else b)._2
+	      solution = sol
+	      if (isDebug) println("found solution with " + (max+1) + ". Looking for better solution")
+      }
+    }
+    solution.sortWith((a, b) => a._1 < b._1)
   }
   
   /**
@@ -51,6 +85,7 @@ object Solver3 {
       return List[(Int,Int)]()
     }
     
+    stopTime = Platform.currentTime + timelimit;
     findSolutionR(graph, constraints, colors,  List[(Int, Int)]());
   }
   
@@ -58,6 +93,11 @@ object Solver3 {
    * Recursive algorithm that finds a solution by fixing variables and propagating constraints 
    */
   def findSolutionR(graph: Graph, constraints: HashSet[Constraint], colors: Array[HashSet[Int]], solution: List[(Int, Int)]): List[(Int, Int)] = {
+     //Did we timeout
+     if (stopTime < Platform.currentTime) {
+       return List[(Int, Int)]()
+     }
+     
      //do we have a solution
      if (solution.length == graph.nodeCount) {
        solution
@@ -69,7 +109,7 @@ object Solver3 {
          val itr = colors(chosenIndex).iterator
          while (itr.hasNext && solutionFound.isEmpty) {
         	 val choice = itr.next
-		     if (isDebug) println("choosing " + " " * solution.length + " " + chosenIndex + " = " +  choice)
+		     //if (isDebug) println("choosing " + " " * solution.length + " " + chosenIndex + " = " +  choice)
 		     
 		     val nextConstraints = constraints + new IsEqualConstraint(chosenIndex, choice, graph)
         	 //TODO use immutable types so the deep clone is unnecessary
