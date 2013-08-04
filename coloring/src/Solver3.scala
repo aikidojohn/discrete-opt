@@ -3,18 +3,20 @@ import scala.Array.canBuildFrom
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Queue
-import scala.io.Source
 import scala.compat.Platform
+import scala.io.Source
 
 object Solver3 {
-  val isDebug = true
+  val isDebug = false
   var stopTime = 1L
-  val timelimit = 60000L
+  var timelimit = 60000L
   
   def main(args: Array[String]) : Unit = {
     val graph = new Graph(args(0))
     //println("nodes: " + graph.nodeCount + " edges: " + graph.edgeCount)
     //graph.nodes.foreach(n => println(n._1 + ": { " + (n._2.children.foldLeft("")((z, c) => z + c.index + " "))  + "}"))
+    timelimit = 30000L * (Math.ceil(graph.nodeCount / 125.0)).longValue()
+    //println(timelimit)
     solve(graph)
   }
   
